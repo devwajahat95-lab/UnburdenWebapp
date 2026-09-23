@@ -1,9 +1,1 @@
-node_modules/
-build/
-.env
-.env.*
-.DS_Store
-npm-debug.log*
-build.log
-src.zip
-script.html
+node_modules
