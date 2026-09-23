@@ -13,7 +13,7 @@ const useSandbox = process.env.EMAIL_SANDBOX === 'true' || process.env.NODE_ENV 
 
 const FROM = useSandbox
   ? 'The Unburdened Collective <onboarding@resend.dev>'
-  : 'The Unburdened Collective <hello@yourdomain.com>';
+  : 'The Unburdened Collective <onboarding@resend.dev>';
 
 export async function sendEmail({ to, subject, html }) {
   const result = await resend.emails.send({ from: FROM, to, subject, html });
