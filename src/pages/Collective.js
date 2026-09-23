@@ -1,16 +1,17 @@
 import { useState } from 'react';
 import { ArrowRight, Check, Lock, Users, BookOpen, Video, MessageCircle } from 'lucide-react';
 import BookingModal from '../components/BookingModal';
+import { apiFetch } from '../lib/api';
 
 const tiers = [
   {
-    name:'Member', price:'$29/mo', color:'#1F5154',
+    name:'Member', tier:'member', price:'$29/mo', color:'#1F5154',
     desc:'The content library, monthly classes, and a community who already understands what you carry.',
     features:['Monthly group class (live + recording)','Full content library access','Worry Sniff Tracker + Energy Map tools','Community forum','Monthly theme drops'],
     cta:'Join as Member',
   },
   {
-    name:'Inner Circle', price:'$79/mo', color:'#C6A03C', featured:true,
+    name:'Inner Circle', tier:'inner-circle', price:'$79/mo', color:'#C6A03C', featured:true,
     desc:'Everything in Member, plus a monthly 1:1 touchpoint with Emily and priority booking.',
     features:['Everything in Member','Monthly 30-min 1:1 with Emily','Priority coaching booking','Advance access to new tools + content','CoP cohort early access','Quarterly intensive discount (20%)'],
     cta:'Join Inner Circle',
@@ -23,6 +24,24 @@ export default function Collective() {
   const [waitlistDone, setWaitlistDone] = useState(false);
   const [waitlistSubmitting, setWaitlistSubmitting] = useState(false);
   const [waitlistError, setWaitlistError] = useState('');
+  const [joiningTier, setJoiningTier] = useState(null);
+  const [joinError, setJoinError] = useState('');
+
+  const handleJoin = async (tier) => {
+    if (joiningTier) return;
+    setJoiningTier(tier);
+    setJoinError('');
+    try {
+      const { url } = await apiFetch('/api/subscriptions/checkout', {
+        method: 'POST',
+        body: { tier },
+      });
+      if (url) window.location.href = url;
+    } catch (err) {
+      setJoinError(err.message || 'Something went wrong. Please try again.');
+      setJoiningTier(null);
+    }
+  };
 
   const joinWaitlist = async (e) => {
     e.preventDefault();
@@ -127,14 +146,16 @@ export default function Collective() {
                 </ul>
                 <button
                   className={t.featured?'btn-primary':'btn-outline'}
-                  style={{width:'100%',justifyContent:'center',fontSize:'0.9rem'}}
-                  onClick={()=>setModal('assessment')}
+                  style={{width:'100%',justifyContent:'center',fontSize:'0.9rem',opacity:joiningTier?0.7:1}}
+                  onClick={()=>handleJoin(t.tier)}
+                  disabled={!!joiningTier}
                 >
-                  {t.cta} <ArrowRight size={15}/>
+                  {joiningTier===t.tier ? 'Redirecting...' : <>{t.cta} <ArrowRight size={15}/></>}
                 </button>
               </div>
             ))}
           </div>
+          {joinError && <p style={{textAlign:'center',color:'#c0392b',fontSize:'0.85rem',marginTop:16}}>{joinError}</p>}
           <p style={{textAlign:'center',marginTop:24,fontSize:'0.82rem',color:'#9b9b9b'}}>
             Cancel any time. No lock-in. 30-day money-back guarantee.
           </p>

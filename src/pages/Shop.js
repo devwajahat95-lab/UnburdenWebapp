@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ShoppingCart, Download, Package, ArrowRight } from 'lucide-react';
 import { useCart } from '../contexts/CartContext';
+import { supabase } from '../lib/supabase';
 
 const PLACEHOLDER_IMG = {
   digital: 'https://images.unsplash.com/photo-1531346878377-a5be20888e57?w=500&q=80',
@@ -52,11 +53,13 @@ function ProductCard({ p, onAdd }) {
 }
 
 export default function Shop() {
-  const { itemCount, totalDisplay, addItem } = useCart();
+  const { items, itemCount, totalDisplay, addItem } = useCart();
   const [downloads, setDownloads] = useState([]);
   const [physical, setPhysical] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const [checkingOut, setCheckingOut] = useState(false);
+  const [checkoutError, setCheckoutError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -72,6 +75,33 @@ export default function Shop() {
     return () => { cancelled = true; };
   }, []);
 
+  const handleCheckout = async () => {
+    if (itemCount === 0 || checkingOut) return;
+    setCheckingOut(true);
+    setCheckoutError('');
+    try {
+      const { data: { session: authSession } } = await supabase.auth.getSession();
+      const res = await fetch('/api/checkout/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: items.map(item => ({ id: item.id, quantity: 1 })),
+          userId: authSession?.user?.id || null,
+          email: authSession?.user?.email || null,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || 'Something went wrong. Please try again.');
+      }
+      const { url } = await res.json();
+      window.location.href = url;
+    } catch (err) {
+      setCheckoutError(err.message || 'Something went wrong. Please try again.');
+      setCheckingOut(false);
+    }
+  };
+
   return (
     <div>
       <section className="page-hero">
@@ -83,12 +113,17 @@ export default function Shop() {
       </section>
 
       {itemCount > 0 && (
-        <div style={{position:'fixed',bottom:24,right:24,background:'#1F5154',color:'white',padding:'14px 20px',borderRadius:12,boxShadow:'0 8px 24px rgba(31,81,84,0.3)',zIndex:50,display:'flex',alignItems:'center',gap:12}}>
-          <ShoppingCart size={18}/>
-          <span style={{fontWeight:600}}>{itemCount} item{itemCount>1?'s':''}</span>
-          <span style={{color:'rgba(255,255,255,0.6)'}}>·</span>
-          <span style={{color:'#C6A03C',fontWeight:700}}>{totalDisplay}</span>
-          <button style={{marginLeft:8,background:'#C6A03C',color:'#163a3d',border:'none',borderRadius:8,padding:'6px 14px',fontWeight:600,fontSize:'0.82rem',cursor:'pointer'}}>Checkout →</button>
+        <div style={{position:'fixed',bottom:24,right:24,background:'#1F5154',color:'white',padding:'14px 20px',borderRadius:12,boxShadow:'0 8px 24px rgba(31,81,84,0.3)',zIndex:50,display:'flex',flexDirection:'column',alignItems:'flex-end',gap:6}}>
+          <div style={{display:'flex',alignItems:'center',gap:12}}>
+            <ShoppingCart size={18}/>
+            <span style={{fontWeight:600}}>{itemCount} item{itemCount>1?'s':''}</span>
+            <span style={{color:'rgba(255,255,255,0.6)'}}>·</span>
+            <span style={{color:'#C6A03C',fontWeight:700}}>{totalDisplay}</span>
+            <button onClick={handleCheckout} disabled={checkingOut} style={{marginLeft:8,background:'#C6A03C',color:'#163a3d',border:'none',borderRadius:8,padding:'6px 14px',fontWeight:600,fontSize:'0.82rem',cursor:checkingOut?'default':'pointer',opacity:checkingOut?0.7:1}}>
+              {checkingOut ? 'Redirecting...' : 'Checkout →'}
+            </button>
+          </div>
+          {checkoutError && <span style={{color:'#f5a3a3',fontSize:'0.78rem'}}>{checkoutError}</span>}
         </div>
       )}
 
