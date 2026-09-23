@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { HelmetProvider } from 'react-helmet-async';
+import { CartProvider } from './contexts/CartContext';
 import Nav from './components/Nav';
 import Footer from './components/Footer';
 import AssessmentModal from './components/AssessmentModal';
@@ -11,8 +13,16 @@ import Shop from './pages/Shop';
 import About from './pages/About';
 import Podcast from './pages/Podcast';
 import ScopeOfService from './pages/ScopeOfService';
-import Download from './pages/Download';
 import OrderSuccess from './pages/OrderSuccess';
+import Login from './pages/Login';
+import Members from './pages/Members';
+import Assessment from './pages/Assessment';
+import Blog from './pages/Blog';
+import BlogPost from './pages/BlogPost';
+import PodcastEpisode from './pages/PodcastEpisode';
+import Admin from './pages/Admin';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import Terms from './pages/Terms';
 
 import './index.css';
 
@@ -58,9 +68,11 @@ export default function App() {
   const [modal, setModal] = useState(null); // 'assessment' | 'coaching' | 'class' | 'intensive' | null
 
   return (
-    <BrowserRouter>
-      <ScrollTop />
-      <RevealObserver />
+    <HelmetProvider>
+      <CartProvider>
+        <BrowserRouter>
+          <ScrollTop />
+          <RevealObserver />
 
       {modal === 'assessment' && <AssessmentModal onClose={() => setModal(null)} />}
       {modal && modal !== 'assessment' && <BookingModal type={modal} onClose={() => setModal(null)} />}
@@ -76,13 +88,23 @@ export default function App() {
           <Route path="/about"          element={<About />} />
           <Route path="/podcast"        element={<Podcast />} />
           <Route path="/scope-of-service" element={<ScopeOfService />} />
-          <Route path="/download/:tokenId" element={<Download />} />
           <Route path="/order-success" element={<OrderSuccess />} />
+          <Route path="/assessment" element={<Assessment />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/members" element={<Members />} />
+          <Route path="/blog" element={<Blog />} />
+          <Route path="/blog/:slug" element={<BlogPost />} />
+          <Route path="/podcast/:slug" element={<PodcastEpisode />} />
+          <Route path="/admin" element={<Admin />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/terms-of-service" element={<Terms />} />
           <Route path="*" element={<div style={{ padding:'160px 0', textAlign:'center' }}><h2>Page not found</h2></div>} />
         </Routes>
       </main>
 
-      <Footer />
-    </BrowserRouter>
+          <Footer />
+        </BrowserRouter>
+      </CartProvider>
+    </HelmetProvider>
   );
 }

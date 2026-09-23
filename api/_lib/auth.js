@@ -1,0 +1,32 @@
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_KEY
+);
+
+export async function requireAuth(req, res) {
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token) {
+    res.status(401).json({ error: 'Authentication required' });
+    return null;
+  }
+
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+  if (error || !user) {
+    res.status(401).json({ error: 'Invalid or expired token. Please sign in again.' });
+    return null;
+  }
+  return user;
+}
+
+export async function requireAdmin(req, res) {
+  const user = await requireAuth(req, res);
+  if (!user) return null;
+  if (user.user_metadata?.role !== 'admin') {
+    res.status(403).json({ error: 'Admin access required' });
+    return null;
+  }
+  return user;
+}

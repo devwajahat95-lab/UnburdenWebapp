@@ -56,8 +56,8 @@ export default function WorkWithMe() {
       {services.map((s,i)=>(
         <section key={s.type} className="section" style={{background: i%2===0?'white':'#FAF8F4'}}>
           <div className="container">
-            <div className="grid-2" style={{gap:64,alignItems:'center',direction: i===1?'rtl':'ltr'}}>
-              <div style={{direction:'ltr'}}>
+            <div className="grid-2" style={{gap:64,alignItems:'center'}}>
+              <div style={{order:i===1?2:1}}>
                 <div style={{display:'flex',alignItems:'center',gap:14,marginBottom:20}}>
                   <div style={{width:56,height:56,borderRadius:'50%',background:`${s.color}15`,display:'flex',alignItems:'center',justifyContent:'center',color:s.color,flexShrink:0}}>
                     {s.icon}
@@ -83,7 +83,7 @@ export default function WorkWithMe() {
                   </button>
                 </div>
               </div>
-              <img src={s.img} alt={s.title} style={{width:'100%',borderRadius:12,boxShadow:'0 12px 40px rgba(31,81,84,0.15)',direction:'ltr'}}/>
+              <img src={s.img} alt={s.title} style={{width:'100%',borderRadius:12,boxShadow:'0 12px 40px rgba(31,81,84,0.15)',order:i===1?1:2}}/>
             </div>
           </div>
         </section>

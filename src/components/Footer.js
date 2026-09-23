@@ -17,8 +17,8 @@ export default function Footer() {
             </div>
             <p>Workplace PTSD is real. Moral injury is real. You don’t have to keep carrying a sack that was never yours. This is where you put it down.</p>
             <div style={{display:'flex',gap:12,marginTop:20}}>
-              <a href="#" aria-label="Instagram" style={{color:'rgba(255,255,255,0.5)'}}><Instagram size={20}/></a>
-              <a href="#" aria-label="LinkedIn" style={{color:'rgba(255,255,255,0.5)'}}><Linkedin size={20}/></a>
+              <a href={process.env.REACT_APP_INSTAGRAM_URL || '#'} aria-label="Instagram" target="_blank" rel="noopener noreferrer" style={{color:'rgba(255,255,255,0.5)'}}><Instagram size={20}/></a>
+              <a href={process.env.REACT_APP_SPOTIFY_URL || '#'} aria-label="Spotify Podcast" target="_blank" rel="noopener noreferrer" style={{color:'rgba(255,255,255,0.5)'}}><Linkedin size={20}/></a>
             </div>
           </div>
           <div>
@@ -37,8 +37,8 @@ export default function Footer() {
             <ul>
               <li><Link to="/scope-of-service">Scope of Service</Link></li>
               <li><a href="mailto:hello@unburdenedcollective.com">Contact</a></li>
-              <li><a href="#">Privacy Policy</a></li>
-              <li><a href="#">Terms</a></li>
+              <li><Link to="/privacy-policy">Privacy Policy</Link></li>
+              <li><Link to="/terms-of-service">Terms</Link></li>
             </ul>
             <div style={{marginTop:16}}>
               <p style={{margin:0,fontSize:'0.78rem',color:'rgba(255,255,255,0.45)'}}>
