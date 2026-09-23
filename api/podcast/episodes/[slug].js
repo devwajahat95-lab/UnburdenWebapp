@@ -13,6 +13,7 @@ export default async function handler(req, res) {
     .lte('published_at', new Date().toISOString())
     .single();
 
+  if (error) console.error('GET /api/podcast/episodes/:slug — Supabase error:', error.message, error);
   if (error || !data) return res.status(404).json({ error: 'Episode not found' });
   return res.json(data);
 }

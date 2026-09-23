@@ -11,6 +11,7 @@ export default async function handler(req, res) {
     .eq('active', true)
     .single();
 
+  if (error) console.error('GET /api/products/:id — Supabase error:', error.message, error);
   if (error || !data) return res.status(404).json({ error: 'Product not found' });
 
   const { r2_key, ...stripped } = data;

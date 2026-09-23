@@ -32,11 +32,16 @@ export default function Collective() {
     setJoiningTier(tier);
     setJoinError('');
     try {
-      const { url } = await apiFetch('/api/subscriptions/checkout', {
+      // apiFetch attaches the Supabase session token if logged in, and
+      // automatically redirects to /login if the API returns 401 (not
+      // logged in) — subscriptions require an account, unlike guest checkout.
+      // On that redirect path, apiFetch returns undefined rather than
+      // throwing, so guard against that before destructuring.
+      const result = await apiFetch('/api/subscriptions/checkout', {
         method: 'POST',
         body: { tier },
       });
-      if (url) window.location.href = url;
+      if (result?.url) window.location.href = result.url;
     } catch (err) {
       setJoinError(err.message || 'Something went wrong. Please try again.');
       setJoiningTier(null);

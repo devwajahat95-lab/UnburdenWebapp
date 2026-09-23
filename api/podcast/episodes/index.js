@@ -14,6 +14,9 @@ export default async function handler(req, res) {
     .order('published_at', { ascending: false })
     .limit(parsedLimit);
 
-  if (error) return res.status(500).json({ error: 'Failed to load episodes' });
+  if (error) {
+    console.error('GET /api/podcast/episodes — Supabase error:', error.message, error);
+    return res.status(500).json({ error: 'Failed to load episodes' });
+  }
   return res.json(data);
 }
