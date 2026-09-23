@@ -1,5 +1,23 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
+
+function CalEmbed({ calLink }) {
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://cal.com/embed.js';
+    script.async = true;
+    document.body.appendChild(script);
+    return () => document.body.removeChild(script);
+  }, []);
+
+  return (
+    <div
+      data-cal-link={calLink}
+      data-cal-config='{"layout":"month_view"}'
+      style={{ width: '100%', height: 640 }}
+    />
+  );
+}
 
 export default function BookingModal({ type, onClose }) {
   const [step, setStep] = useState(1);
@@ -31,51 +49,35 @@ export default function BookingModal({ type, onClose }) {
         ) : (
           <>
             <h3>{titles[type] || 'Book a Session'}</h3>
-            <p>All 1:1 work is coaching   not therapy. <a href="/scope-of-service" target="_blank" style={{color:'#1F5154'}}>See scope of service →</a></p>
-            <form onSubmit={submit}>
-              <input placeholder="Full name" value={form.name} onChange={set('name')} required/>
-              <input type="email" placeholder="Email address" value={form.email} onChange={set('email')} required/>
-              {type === 'assessment' ? (
-                <>
-                  <select value={form.goal} onChange={set('goal')} required>
-                    <option value="">What's feeling heaviest right now?</option>
-                    <option>Workplace burnout / moral injury</option>
-                    <option>Leadership pressure</option>
-                    <option>Caregiver overload</option>
-                    <option>Life transition</option>
-                    <option>I'm not sure yet</option>
-                  </select>
-                  <textarea placeholder="Briefly describe what’s been weighing on you..." rows={3} value={form.prior} onChange={set('prior')} style={{resize:'vertical'}}/>
-                </>
-              ) : (
-                <>
-                  <select value={form.goal} onChange={set('goal')} required>
-                    <option value="">What brings you here?</option>
-                    <option>Burnout / workplace PTSD</option>
-                    <option>Moral injury at work</option>
-                    <option>Leadership / caregiver exhaustion</option>
-                    <option>Major life transition</option>
-                    <option>Something else</option>
-                  </select>
-                  <select value={form.prior} onChange={set('prior')}>
-                    <option value="">Have you worked with a coach before?</option>
-                    <option>Yes</option>
-                    <option>No</option>
-                    <option>I've done therapy but not coaching</option>
-                  </select>
-                </>
-              )}
-              <div className="scope-note">
-                <strong>Scope acknowledgment:</strong> I understand The Unburdened Collective offers coaching and psychoeducation   not therapy, diagnosis, or crisis care. For mental health emergencies I will contact 988, Crisis Text Line, or 911.
-              </div>
-              <label style={{display:'flex',gap:10,alignItems:'flex-start',marginBottom:16,cursor:'pointer',fontSize:'0.85rem',color:'#3d3d3d'}}>
-                <input type="checkbox" checked={form.scope} onChange={set('scope')} required style={{width:'auto',marginTop:2}}/>
-                I've read and agree to the scope of service above.
-              </label>
-              <button className="btn-primary" type="submit">
-                {type==='assessment' ? 'Start the Assessment →' : 'Confirm Booking →'}
-              </button>
-            </form>
+            <p>All 1:1 work is coaching — not therapy. <a href="/scope-of-service" target="_blank" style={{color:'#1F5154'}}>See scope of service →</a></p>
+
+            {/* Replace native form with Cal.com embed for bookings (coaching/intensive/class) */}
+            {type && type !== 'assessment' ? (
+              <CalEmbed calLink="emily-hartwell/coaching-session" />
+            ) : (
+              /* keep the lightweight assessment flow as the existing form */
+              <form onSubmit={submit}>
+                <input placeholder="Full name" value={form.name} onChange={set('name')} required/>
+                <input type="email" placeholder="Email address" value={form.email} onChange={set('email')} required/>
+                <select value={form.goal} onChange={set('goal')} required>
+                  <option value="">What's feeling heaviest right now?</option>
+                  <option>Workplace burnout / moral injury</option>
+                  <option>Leadership pressure</option>
+                  <option>Caregiver overload</option>
+                  <option>Life transition</option>
+                  <option>I'm not sure yet</option>
+                </select>
+                <textarea placeholder="Briefly describe what’s been weighing on you..." rows={3} value={form.prior} onChange={set('prior')} style={{resize:'vertical'}}/>
+                <div className="scope-note">
+                  <strong>Scope acknowledgment:</strong> I understand The Unburdened Collective offers coaching and psychoeducation — not therapy, diagnosis, or crisis care. For mental health emergencies I will contact 988, Crisis Text Line, or 911.
+                </div>
+                <label style={{display:'flex',gap:10,alignItems:'flex-start',marginBottom:16,cursor:'pointer',fontSize:'0.85rem',color:'#3d3d3d'}}>
+                  <input type="checkbox" checked={form.scope} onChange={set('scope')} required style={{width:'auto',marginTop:2}}/>
+                  I've read and agree to the scope of service above.
+                </label>
+                <button className="btn-primary" type="submit">Start the Assessment →</button>
+              </form>
+            )}
           </>
         )}
       </div>

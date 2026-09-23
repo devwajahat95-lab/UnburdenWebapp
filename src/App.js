@@ -11,6 +11,9 @@ import Shop from './pages/Shop';
 import About from './pages/About';
 import Podcast from './pages/Podcast';
 import ScopeOfService from './pages/ScopeOfService';
+import Download from './pages/Download';
+import OrderSuccess from './pages/OrderSuccess';
+
 import './index.css';
 
 function ScrollTop() {
@@ -73,6 +76,8 @@ export default function App() {
           <Route path="/about"          element={<About />} />
           <Route path="/podcast"        element={<Podcast />} />
           <Route path="/scope-of-service" element={<ScopeOfService />} />
+          <Route path="/download/:tokenId" element={<Download />} />
+          <Route path="/order-success" element={<OrderSuccess />} />
           <Route path="*" element={<div style={{ padding:'160px 0', textAlign:'center' }}><h2>Page not found</h2></div>} />
         </Routes>
       </main>
