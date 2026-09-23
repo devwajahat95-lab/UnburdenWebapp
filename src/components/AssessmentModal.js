@@ -3,20 +3,20 @@ import { X, ChevronRight, ChevronLeft, ArrowRight } from 'lucide-react';
 
 const questions = [
   {
-    q: "When you lay your head down at night, what shows up most?",
-    options: ["Replaying the day's mistakes", "Worry about what's coming tomorrow", "A numb kind of exhaustion", "Guilt about what I didn't do"],
+    q: "What best describes what brought you here?",
+    options: ["Breaking down", "Burning out", "Breaking free", "Burned and rebuilding"],
   },
   {
-    q: "Which of these feels most true right now?",
-    options: ["I'm giving past empty", "I've lost who I was before this job", "I'm performing okay but dying inside", "I don't know what I want anymore"],
+    q: "Where is the heaviest weight showing up?",
+    options: ["My work", "My relationships", "My sense of self", "All three honestly"],
   },
   {
     q: "What's the weight you're carrying that isn't yours?",
     options: ["Other people's expectations", "A role I outgrew but can't leave", "My organization's dysfunction", "A version of myself I was supposed to be"],
   },
   {
-    q: "What would putting the sack down look like for you?",
-    options: ["Real rest   not earned, just taken", "Work that doesn't hollow me out", "Relationships where I'm not the fixer", "Permission to want something different"],
+    q: "What does moving forward look like to you right now?",
+    options: ["I need someone to talk to", "I need a community", "I need tools and frameworks", "I need all of the above"],
   },
 ];
 
@@ -26,16 +26,38 @@ export default function AssessmentModal({ onClose }) {
   const [answers, setAnswers] = useState({});
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   const totalSteps = 5; // 4 questions + email = 5 pip stops
   const currentQ = (step >= 1 && step <= 4) ? questions[step - 1] : null;
 
   const pick = (opt) => {
-    setAnswers(a => ({ ...a, [step]: opt }));
+    setAnswers(a => ({ ...a, [`q${step}`]: opt }));
     setStep(s => s + 1);
   };
 
-  const submit = () => { if (email) setStep(6); };
+  const submit = async () => {
+    if (!email || submitting) return;
+    setSubmitting(true);
+    setSubmitError('');
+    try {
+      const res = await fetch('/api/assessment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, name, answers }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || 'Something went wrong. Please try again.');
+      }
+      setStep(6);
+    } catch (err) {
+      setSubmitError(err.message || 'Something went wrong. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
@@ -125,10 +147,11 @@ export default function AssessmentModal({ onClose }) {
                 type="email"
                 style={{ border: '1.5px solid rgba(31,81,84,0.18)', padding: '12px 14px', fontSize: '0.9rem', background: 'white' }}
               />
-              <button className="btn-primary" onClick={submit} style={{ width: '100%', justifyContent: 'center', padding: '7px', marginTop: 2 }}>
-                Send My Results
+              <button className="btn-primary" onClick={submit} disabled={submitting} style={{ width: '100%', justifyContent: 'center', padding: '7px', marginTop: 2, opacity: submitting ? 0.7 : 1, cursor: submitting ? 'default' : 'pointer' }}>
+                {submitting ? 'Sending...' : 'Send My Results'}
               </button>
             </div>
+            {submitError && <p style={{ color: '#c0392b', fontSize: '0.8rem', marginTop: 8 }}>{submitError}</p>}
             <button onClick={() => setStep(4)} style={{
               background: 'none', border: 'none', color: '#9b9b9b',
               fontSize: '0.8rem', marginTop: 6, display: 'flex', alignItems: 'center', gap: 2, cursor: 'pointer',

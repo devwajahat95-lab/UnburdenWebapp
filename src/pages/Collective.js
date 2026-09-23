@@ -19,6 +19,34 @@ const tiers = [
 
 export default function Collective() {
   const [modal, setModal] = useState(null);
+  const [waitlistEmail, setWaitlistEmail] = useState('');
+  const [waitlistDone, setWaitlistDone] = useState(false);
+  const [waitlistSubmitting, setWaitlistSubmitting] = useState(false);
+  const [waitlistError, setWaitlistError] = useState('');
+
+  const joinWaitlist = async (e) => {
+    e.preventDefault();
+    if (!waitlistEmail || waitlistSubmitting) return;
+    setWaitlistSubmitting(true);
+    setWaitlistError('');
+    try {
+      const res = await fetch('/api/email/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: waitlistEmail, entry_point: 'cop-waitlist' }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || 'Something went wrong. Please try again.');
+      }
+      setWaitlistDone(true);
+      setWaitlistEmail('');
+    } catch (err) {
+      setWaitlistError(err.message || 'Something went wrong. Please try again.');
+    } finally {
+      setWaitlistSubmitting(false);
+    }
+  };
   return (
     <div>
       {modal && <BookingModal type={modal} onClose={()=>setModal(null)}/>}
@@ -122,10 +150,18 @@ export default function Collective() {
             A structured 12-week cohort for people ready to do the deepest version of this work. 
             Capped at 20. Members get first access.
           </p>
-          <div style={{display:'flex',gap:12,maxWidth:400,margin:'0 auto'}}>
-            <input type="email" placeholder="your@email.com" style={{flex:1,padding:'13px 16px',borderRadius:8,border:'none',fontSize:'0.9rem',fontFamily:'DM Sans,sans-serif'}}/>
-            <button className="btn-primary" style={{whiteSpace:'nowrap'}}>Join Waitlist</button>
-          </div>
+          {waitlistDone ? (
+            <p style={{color:'#9FE0B4',fontWeight:600,fontSize:'0.95rem'}}>✓ You're on the list. We'll email you when applications open.</p>
+          ) : (
+            <form onSubmit={joinWaitlist} style={{display:'flex',gap:12,maxWidth:400,margin:'0 auto',flexWrap:'wrap',justifyContent:'center'}}>
+              <input type="email" placeholder="your@email.com" value={waitlistEmail} onChange={e=>setWaitlistEmail(e.target.value)} required
+                style={{flex:1,minWidth:220,padding:'13px 16px',borderRadius:8,border:'none',fontSize:'0.9rem',fontFamily:'DM Sans,sans-serif'}}/>
+              <button type="submit" className="btn-primary" disabled={waitlistSubmitting} style={{whiteSpace:'nowrap'}}>
+                {waitlistSubmitting ? 'Joining...' : 'Join Waitlist'}
+              </button>
+              {waitlistError && <p style={{width:'100%',color:'#f5a3a3',fontSize:'0.8rem',marginTop:4}}>{waitlistError}</p>}
+            </form>
+          )}
         </div>
       </section>
     </div>

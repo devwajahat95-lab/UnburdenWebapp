@@ -5,7 +5,31 @@ import { Instagram, Linkedin, Heart } from 'lucide-react';
 export default function Footer() {
   const [email, setEmail] = useState('');
   const [done, setDone] = useState(false);
-  const submit = (e) => { e.preventDefault(); if (email) { setDone(true); setEmail(''); } };
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!email || submitting) return;
+    setSubmitting(true);
+    setError('');
+    try {
+      const res = await fetch('/api/email/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, entry_point: 'footer' }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || 'Something went wrong. Please try again.');
+      }
+      setDone(true);
+      setEmail('');
+    } catch (err) {
+      setError(err.message || 'Something went wrong. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
   return (
     <footer className="footer">
       <div className="container">
@@ -54,7 +78,8 @@ export default function Footer() {
             ) : (
               <form onSubmit={submit}>
                 <input type="email" placeholder="your@email.com" value={email} onChange={e=>setEmail(e.target.value)} required/>
-                <button type="submit">Get the Tracker →</button>
+                <button type="submit" disabled={submitting}>{submitting ? 'Submitting...' : 'Get the Tracker →'}</button>
+                {error && <p style={{color:'#f5a3a3',fontSize:'0.78rem',marginTop:6}}>{error}</p>}
               </form>
             )}
           </div>
