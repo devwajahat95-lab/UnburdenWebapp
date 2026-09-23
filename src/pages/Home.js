@@ -1,7 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, CheckCircle, Star, BookOpen, Users, Calendar, Play } from 'lucide-react';
 import TiltCard from '../components/TiltCard';
+
+const PODCAST_PLACEHOLDER_IMG = 'https://images.unsplash.com/photo-1614680376573-df3480f0c6ff?w=700&q=80';
 
 // Inline reveal hook for this file
 function useReveal(threshold = 0.13) {
@@ -36,6 +38,18 @@ export default function Home({ onAssessment }) {
   const sec2Ref = useReveal();
   const sec3Ref = useReveal();
   const sec4Ref = useReveal();
+  const [episodes, setEpisodes] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/podcast/episodes?limit=4')
+      .then(res => res.ok ? res.json() : [])
+      .then(data => { if (!cancelled) setEpisodes(data); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  const [latest, ...rest] = episodes;
 
   return (
     <div>
@@ -244,37 +258,33 @@ export default function Home({ onAssessment }) {
       </section>
 
       {/* ── PODCAST TEASER   reference card layout ── */}
-      <section className="section" style={{ background:'#FAF8F4' }}>
+      {latest && <section className="section" style={{ background:'#FAF8F4' }}>
         <div className="container">
           <div className="grid-2" style={{ gap:32, alignItems:'stretch' }}>
             {/* Big featured card */}
-            <div style={{ borderRadius:7, overflow:'hidden', position:'relative', minHeight:140, cursor:'pointer', boxShadow:'0 4px 16px rgba(31,81,84,0.12)' }}
+            <Link to="/podcast" style={{ borderRadius:7, overflow:'hidden', position:'relative', minHeight:140, cursor:'pointer', boxShadow:'0 4px 16px rgba(31,81,84,0.12)', display:'block' }}
               className="lift">
-              <img src="https://images.unsplash.com/photo-1614680376573-df3480f0c6ff?w=700&q=80" alt="Podcast" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}/>
+              <img src={latest.og_image_url || PODCAST_PLACEHOLDER_IMG} alt="Podcast" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}/>
               <div style={{ position:'absolute', inset:0, background:'linear-gradient(to top,rgba(22,58,61,0.92) 0%,rgba(22,58,61,0.2) 60%,transparent 100%)' }}/>
               <div style={{ position:'absolute', bottom:12, left:12, right:12 }}>
-                <div style={{ fontSize:'0.7rem', color:'#9FE0B4', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:3 }}>Latest Episode · Ep 42</div>
+                <div style={{ fontSize:'0.7rem', color:'#9FE0B4', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:3 }}>Latest Episode · Ep {latest.episode_number}</div>
                 <h3 style={{ color:'white', fontFamily:"'Cormorant Garamond',serif", fontSize:'1.15rem', lineHeight:1.35, marginBottom:7 }}>
-                  When Staying Is the Problem   Moral Injury and the Cost of Loyalty
+                  {latest.title}
                 </h3>
-                <Link to="/podcast" style={{ display:'inline-flex', alignItems:'center', gap:4, background:'#C6A03C', color:'#163a3d', padding:'4px 9px', borderRadius:4, fontSize:'0.82rem', fontWeight:600 }}>
+                <span style={{ display:'inline-flex', alignItems:'center', gap:4, background:'#C6A03C', color:'#163a3d', padding:'4px 9px', borderRadius:4, fontSize:'0.82rem', fontWeight:600 }}>
                   <Play size={13} fill="currentColor"/> Listen Now
-                </Link>
+                </span>
               </div>
-            </div>
+            </Link>
 
             {/* Stack of smaller cards */}
             <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-              {[
-                { ep:41, title:"The Truth Tax: What You're Paying That Never Shows Up on a Budget", img:'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=300&q=80' },
-                { ep:40, title:"Giving Past Empty Is Not Dedication. It Is Structural.", img:'https://images.unsplash.com/photo-1508739773434-c26b3d09e071?w=300&q=80' },
-                { ep:39, title:"Self-Stewardship Is Not Self-Care", img:'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=300&q=80' },
-              ].map(ep => (
-                <Link key={ep.ep} to="/podcast" style={{ display:'flex', gap:7, alignItems:'center', background:'white', borderRadius:6, padding:'7px', boxShadow:'0 2px 12px rgba(31,81,84,0.07)', transition:'transform 0.25s,box-shadow 0.25s', cursor:'pointer' }}
+              {rest.map(ep => (
+                <Link key={ep.id} to="/podcast" style={{ display:'flex', gap:7, alignItems:'center', background:'white', borderRadius:6, padding:'7px', boxShadow:'0 2px 12px rgba(31,81,84,0.07)', transition:'transform 0.25s,box-shadow 0.25s', cursor:'pointer' }}
                   className="lift">
-                  <img src={ep.img} alt="" style={{ width:30, height:30, borderRadius:4, objectFit:'cover', flexShrink:0 }}/>
+                  <img src={ep.og_image_url || PODCAST_PLACEHOLDER_IMG} alt="" style={{ width:30, height:30, borderRadius:4, objectFit:'cover', flexShrink:0 }}/>
                   <div style={{ flex:1 }}>
-                    <div style={{ fontSize:'0.68rem', color:'#9b9b9b', marginBottom:2 }}>Ep {ep.ep}</div>
+                    <div style={{ fontSize:'0.68rem', color:'#9b9b9b', marginBottom:2 }}>Ep {ep.episode_number}</div>
                     <div style={{ fontSize:'0.84rem', color:'#163a3d', fontWeight:500, lineHeight:1.4 }}>{ep.title}</div>
                   </div>
                   <Play size={14} color="#C6A03C" style={{ flexShrink:0 }}/>
@@ -286,7 +296,7 @@ export default function Home({ onAssessment }) {
             </div>
           </div>
         </div>
-      </section>
+      </section>}
 
       {/* ── FINAL CTA ── */}
       <section ref={sec4Ref} className="section cta-panel-dark" style={{ background:'#1F5154', textAlign:'center' }}>

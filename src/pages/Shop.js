@@ -1,19 +1,27 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ShoppingCart, Download, Package, ArrowRight } from 'lucide-react';
 
-const downloads = [
-  { id:1, title:'The Unburdening Assessment', subtitle:'Digital PDF + Worksheet', price:'Free', badge:'Lead Magnet', img:'https://images.unsplash.com/photo-1531346878377-a5be20888e57?w=500&q=80', desc:'Five focused questions that name exactly what you’re carrying and where it came from. The starting point for everything else.' },
-  { id:2, title:'Worry Sniff Tracker', subtitle:'30-Day Guided Workbook', price:'$24', img:'https://images.unsplash.com/photo-1517842645767-c639042777db?w=500&q=80', desc:'Daily micro-practice for identifying anxiety patterns before they compound. Built from the framework’s self-stewardship tools.' },
-  { id:3, title:'Energy Map', subtitle:'Clarity Worksheet Bundle', price:'$18', img:'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=500&q=80', desc:'Map where your energy is actually going versus where you think it’s going. Most people are shocked at the gap.' },
-  { id:4, title:'The Truth Tax   Full Guide', subtitle:'Deep-Dive PDF (47 pages)', price:'$39', badge:'Bestseller', img:'https://images.unsplash.com/photo-1456324504439-367cee3b3c32?w=500&q=80', desc:'The complete framework for identifying the invisible costs you’re absorbing at work. Includes the institutional audit tool.' },
-  { id:5, title:'Put the Sack Down   Recorded Class', subtitle:'90-min Video + Workbook', price:'$65', img:'https://images.unsplash.com/photo-1588702547919-26089e690ecc?w=500&q=80', desc:'Emily’s signature intro class on moral injury and workplace PTSD. The most-watched session in the library.' },
-  { id:6, title:'Break Out, Not Drop Out', subtitle:'Recorded Masterclass', price:'$65', img:'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=500&q=80', desc:'For the person who knows they can’t stay   but doesn’t know how to leave without it costing everything.' },
-];
+const PLACEHOLDER_IMG = {
+  digital: 'https://images.unsplash.com/photo-1531346878377-a5be20888e57?w=500&q=80',
+  physical: 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=500&q=80',
+};
 
-const physical = [
-  { id:7, title:'Grounding Kit   Teal', subtitle:'Tactile Self-Stewardship Tools', price:'$48', img:'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=500&q=80', desc:'The Grounding Collection: a small set of physical tools for sensory anchoring   part of the self-stewardship practice.' },
-  { id:8, title:'The Unburdened Life   Book', subtitle:'Hardcover, signed', price:'$35', img:'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=500&q=80', desc:'Emily’s book. The framework in full. Signed copies available while they last.' },
-];
+function formatPrice(cents) {
+  if (cents === 0) return 'Free';
+  return `$${(cents / 100).toFixed(2).replace(/\.00$/, '')}`;
+}
+
+function mapProduct(product) {
+  return {
+    id: product.id,
+    title: product.title,
+    subtitle: product.subtitle,
+    price: formatPrice(product.price_cents),
+    badge: product.badge,
+    img: PLACEHOLDER_IMG[product.type] || PLACEHOLDER_IMG.digital,
+    desc: product.description,
+  };
+}
 
 function ProductCard({ p, onAdd }) {
   const [added, setAdded] = useState(false);
@@ -43,6 +51,25 @@ function ProductCard({ p, onAdd }) {
 
 export default function Shop() {
   const [cart, setCart] = useState([]);
+  const [productsDownloads, setProductsDownloads] = useState([]);
+  const [productsPhysical, setProductsPhysical] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/products')
+      .then(res => { if (!res.ok) throw new Error('Failed to load products'); return res.json(); })
+      .then(products => {
+        if (cancelled) return;
+        setProductsDownloads(products.filter(product => product.type === 'digital').map(mapProduct));
+        setProductsPhysical(products.filter(product => product.type === 'physical').map(mapProduct));
+      })
+      .catch(() => { if (!cancelled) setLoadError(true); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+
   const addToCart = (p) => setCart(c => [...c, p]);
   const total = cart.reduce((sum,p)=>sum+(p.price==='Free'?0:parseFloat(p.price.replace('$',''))),0);
 
@@ -72,8 +99,11 @@ export default function Shop() {
             <Download size={20} style={{color:'#1F5154'}}/>
             <h2 style={{fontSize:'1.6rem',color:'#163a3d'}}>Digital Downloads</h2>
           </div>
+          {loading && <p style={{color:'#9b9b9b',fontSize:'0.9rem'}}>Loading...</p>}
+          {loadError && <p style={{color:'#9b9b9b',fontSize:'0.9rem'}}>Couldn't load products right now. Try refreshing.</p>}
+          {!loading && !loadError && productsDownloads.length === 0 && <p style={{color:'#9b9b9b',fontSize:'0.9rem'}}>No digital products yet — check back soon.</p>}
           <div className="grid-3">
-            {downloads.map(p=><ProductCard key={p.id} p={p} onAdd={addToCart}/>)}
+            {productsDownloads.map(p=><ProductCard key={p.id} p={p} onAdd={addToCart}/>)}
           </div>
         </div>
       </section>
@@ -84,8 +114,9 @@ export default function Shop() {
             <Package size={20} style={{color:'#1F5154'}}/>
             <h2 style={{fontSize:'1.6rem',color:'#163a3d'}}>The Grounding Collection</h2>
           </div>
+          {!loading && !loadError && productsPhysical.length === 0 && <p style={{color:'#9b9b9b',fontSize:'0.9rem'}}>No physical products yet — check back soon.</p>}
           <div className="grid-2" style={{maxWidth:700,gap:24}}>
-            {physical.map(p=><ProductCard key={p.id} p={p} onAdd={addToCart}/>)}
+            {productsPhysical.map(p=><ProductCard key={p.id} p={p} onAdd={addToCart}/>)}
           </div>
           <p style={{marginTop:16,fontSize:'0.8rem',color:'#9b9b9b'}}>Physical products ship in 3-5 business days. Free shipping over $75.</p>
         </div>
