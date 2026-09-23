@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ShoppingCart, Download, Package, ArrowRight } from 'lucide-react';
+import { useCart } from '../contexts/CartContext';
 
 const PLACEHOLDER_IMG = {
   digital: 'https://images.unsplash.com/photo-1531346878377-a5be20888e57?w=500&q=80',
@@ -17,8 +18,9 @@ function mapProduct(product) {
     title: product.title,
     subtitle: product.subtitle,
     price: formatPrice(product.price_cents),
+    price_cents: product.price_cents,
     badge: product.badge,
-    img: PLACEHOLDER_IMG[product.type] || PLACEHOLDER_IMG.digital,
+    img: product.image_url || PLACEHOLDER_IMG[product.type] || PLACEHOLDER_IMG.digital,
     desc: product.description,
   };
 }
@@ -50,9 +52,9 @@ function ProductCard({ p, onAdd }) {
 }
 
 export default function Shop() {
-  const [cart, setCart] = useState([]);
-  const [productsDownloads, setProductsDownloads] = useState([]);
-  const [productsPhysical, setProductsPhysical] = useState([]);
+  const { itemCount, totalDisplay, addItem } = useCart();
+  const [downloads, setDownloads] = useState([]);
+  const [physical, setPhysical] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
 
@@ -62,16 +64,13 @@ export default function Shop() {
       .then(res => { if (!res.ok) throw new Error('Failed to load products'); return res.json(); })
       .then(products => {
         if (cancelled) return;
-        setProductsDownloads(products.filter(product => product.type === 'digital').map(mapProduct));
-        setProductsPhysical(products.filter(product => product.type === 'physical').map(mapProduct));
+        setDownloads(products.filter(product => product.type === 'digital').map(mapProduct));
+        setPhysical(products.filter(product => product.type === 'physical').map(mapProduct));
       })
       .catch(() => { if (!cancelled) setLoadError(true); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, []);
-
-  const addToCart = (p) => setCart(c => [...c, p]);
-  const total = cart.reduce((sum,p)=>sum+(p.price==='Free'?0:parseFloat(p.price.replace('$',''))),0);
 
   return (
     <div>
@@ -83,12 +82,12 @@ export default function Shop() {
         </div>
       </section>
 
-      {cart.length > 0 && (
+      {itemCount > 0 && (
         <div style={{position:'fixed',bottom:24,right:24,background:'#1F5154',color:'white',padding:'14px 20px',borderRadius:12,boxShadow:'0 8px 24px rgba(31,81,84,0.3)',zIndex:50,display:'flex',alignItems:'center',gap:12}}>
           <ShoppingCart size={18}/>
-          <span style={{fontWeight:600}}>{cart.length} item{cart.length>1?'s':''}</span>
+          <span style={{fontWeight:600}}>{itemCount} item{itemCount>1?'s':''}</span>
           <span style={{color:'rgba(255,255,255,0.6)'}}>·</span>
-          <span style={{color:'#C6A03C',fontWeight:700}}>${total.toFixed(2)}</span>
+          <span style={{color:'#C6A03C',fontWeight:700}}>{totalDisplay}</span>
           <button style={{marginLeft:8,background:'#C6A03C',color:'#163a3d',border:'none',borderRadius:8,padding:'6px 14px',fontWeight:600,fontSize:'0.82rem',cursor:'pointer'}}>Checkout →</button>
         </div>
       )}
@@ -101,9 +100,9 @@ export default function Shop() {
           </div>
           {loading && <p style={{color:'#9b9b9b',fontSize:'0.9rem'}}>Loading...</p>}
           {loadError && <p style={{color:'#9b9b9b',fontSize:'0.9rem'}}>Couldn't load products right now. Try refreshing.</p>}
-          {!loading && !loadError && productsDownloads.length === 0 && <p style={{color:'#9b9b9b',fontSize:'0.9rem'}}>No digital products yet — check back soon.</p>}
+          {!loading && !loadError && downloads.length === 0 && <p style={{color:'#9b9b9b',fontSize:'0.9rem'}}>No digital products yet — check back soon.</p>}
           <div className="grid-3">
-            {productsDownloads.map(p=><ProductCard key={p.id} p={p} onAdd={addToCart}/>)}
+            {downloads.map(p=><ProductCard key={p.id} p={p} onAdd={addItem}/>)}
           </div>
         </div>
       </section>
@@ -114,9 +113,9 @@ export default function Shop() {
             <Package size={20} style={{color:'#1F5154'}}/>
             <h2 style={{fontSize:'1.6rem',color:'#163a3d'}}>The Grounding Collection</h2>
           </div>
-          {!loading && !loadError && productsPhysical.length === 0 && <p style={{color:'#9b9b9b',fontSize:'0.9rem'}}>No physical products yet — check back soon.</p>}
+          {!loading && !loadError && physical.length === 0 && <p style={{color:'#9b9b9b',fontSize:'0.9rem'}}>No physical products yet — check back soon.</p>}
           <div className="grid-2" style={{maxWidth:700,gap:24}}>
-            {productsPhysical.map(p=><ProductCard key={p.id} p={p} onAdd={addToCart}/>)}
+            {physical.map(p=><ProductCard key={p.id} p={p} onAdd={addItem}/>)}
           </div>
           <p style={{marginTop:16,fontSize:'0.8rem',color:'#9b9b9b'}}>Physical products ship in 3-5 business days. Free shipping over $75.</p>
         </div>
