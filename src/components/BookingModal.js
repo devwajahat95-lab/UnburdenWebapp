@@ -5,7 +5,7 @@ import { X } from 'lucide-react';
 // Emily's real Cal.com username/event slugs once she creates her account —
 // e.g. 'emily-tuc/coaching-session' becomes whatever Cal.com actually assigns.
 const CAL_SLUGS = {
-  coaching: 'emily-tuc/coaching-session',
+  coaching: 'test-coaching-session',
   class: 'emily-tuc/group-class',
   intensive: 'emily-tuc/intensive',
 };
