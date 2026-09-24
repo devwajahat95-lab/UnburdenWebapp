@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Clock, Users, Zap, CheckCircle, ArrowRight } from 'lucide-react';
 import BookingModal from '../components/BookingModal';
+import AssessmentModal from '../components/AssessmentModal';
 
 const services = [
   {
@@ -36,7 +37,8 @@ export default function WorkWithMe() {
   const [modal, setModal] = useState(null);
   return (
     <div>
-      {modal && <BookingModal type={modal} onClose={()=>setModal(null)}/>}
+      {modal === 'assessment' && <AssessmentModal onClose={()=>setModal(null)}/>}
+      {modal && modal !== 'assessment' && <BookingModal type={modal} onClose={()=>setModal(null)}/>}
       <section className="page-hero">
         <div className="container">
           <span className="tag" style={{color:'#9FE0B4'}}>Coaching, Classes &amp; Intensives</span>
