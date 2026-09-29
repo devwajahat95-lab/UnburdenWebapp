@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
-import { ShoppingCart, Download, Package, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ShoppingCart, Download, Package, ArrowRight } from 'lucide-react';
 import { useCart } from '../contexts/CartContext';
 import { supabase } from '../lib/supabase';
 
-// Placeholder art by product type, used only when a product has no image_url set yet.
 const PLACEHOLDER_IMG = {
   digital: 'https://images.unsplash.com/photo-1531346878377-a5be20888e57?w=500&q=80',
   physical: 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=500&q=80',
@@ -14,57 +13,29 @@ function formatPrice(cents) {
   return `$${(cents / 100).toFixed(2).replace(/\.00$/, '')}`;
 }
 
-function mapProduct(p) {
-  const cover = p.image_url || PLACEHOLDER_IMG[p.type] || PLACEHOLDER_IMG.digital;
-  const gallery = (p.image_urls || []).filter(u => u && u.trim() !== '');
-  // Cover image always shown first; gallery images follow, with no duplicates.
-  const images = [cover, ...gallery.filter(u => u !== cover)];
+function mapProduct(product) {
   return {
-    id: p.id,
-    title: p.title,
-    subtitle: p.subtitle,
-    price: formatPrice(p.price_cents),
-    price_cents: p.price_cents,
-    badge: p.badge,
-    images,
-    desc: p.description,
+    id: product.id,
+    title: product.title,
+    subtitle: product.subtitle,
+    price: formatPrice(product.price_cents),
+    price_cents: product.price_cents,
+    badge: product.badge,
+    img: product.image_url || PLACEHOLDER_IMG[product.type] || PLACEHOLDER_IMG.digital,
+    desc: product.description,
   };
 }
 
 function ProductCard({ p, onAdd }) {
   const [added, setAdded] = useState(false);
-  const [imgIndex, setImgIndex] = useState(0);
-  const images = p.images && p.images.length > 0 ? p.images : [];
-  const hasMultiple = images.length > 1;
-
   const handleAdd = () => { setAdded(true); setTimeout(()=>setAdded(false),2000); onAdd && onAdd(p); };
-  const prevImg = (e) => { e.stopPropagation(); setImgIndex(i => (i - 1 + images.length) % images.length); };
-  const nextImg = (e) => { e.stopPropagation(); setImgIndex(i => (i + 1) % images.length); };
-
   return (
     <div className="card reveal-item">
-      <div style={{position:'relative',overflow:'hidden',height:200}} className="product-gallery">
-        <img src={images[imgIndex]} alt={p.title} style={{width:'100%',height:'100%',objectFit:'cover',transition:'opacity 0.2s'}}/>
+      <div style={{position:'relative',overflow:'hidden',height:200}}>
+        <img src={p.img} alt={p.title} style={{width:'100%',height:'100%',objectFit:'cover',transition:'transform 0.3s'}}
+          onMouseEnter={e=>e.target.style.transform='scale(1.05)'}
+          onMouseLeave={e=>e.target.style.transform='scale(1)'}/>
         {p.badge && <div style={{position:'absolute',top:12,left:12,background:'#C6A03C',color:'#163a3d',fontSize:'0.68rem',fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase',padding:'4px 10px',borderRadius:2}}>{p.badge}</div>}
-
-        {hasMultiple && (
-          <>
-            <button onClick={prevImg} aria-label="Previous image" className="gallery-arrow gallery-arrow-left"
-              style={{position:'absolute',top:'50%',left:8,transform:'translateY(-50%)',background:'rgba(22,58,61,0.55)',color:'white',border:'none',borderRadius:'50%',width:28,height:28,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',opacity:0,transition:'opacity 0.2s'}}>
-              <ChevronLeft size={16}/>
-            </button>
-            <button onClick={nextImg} aria-label="Next image" className="gallery-arrow gallery-arrow-right"
-              style={{position:'absolute',top:'50%',right:8,transform:'translateY(-50%)',background:'rgba(22,58,61,0.55)',color:'white',border:'none',borderRadius:'50%',width:28,height:28,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',opacity:0,transition:'opacity 0.2s'}}>
-              <ChevronRight size={16}/>
-            </button>
-            <div style={{position:'absolute',bottom:8,left:0,right:0,display:'flex',justifyContent:'center',gap:5}}>
-              {images.map((_, i) => (
-                <span key={i} onClick={(e)=>{e.stopPropagation();setImgIndex(i);}}
-                  style={{width:6,height:6,borderRadius:'50%',cursor:'pointer',background: i===imgIndex ? '#C6A03C' : 'rgba(255,255,255,0.6)',transition:'background 0.2s'}}/>
-              ))}
-            </div>
-          </>
-        )}
       </div>
       <div style={{padding:'22px 20px'}}>
         <div style={{fontSize:'0.72rem',color:'#9b9b9b',letterSpacing:'0.06em',marginBottom:4}}>{p.subtitle}</div>
@@ -96,8 +67,8 @@ export default function Shop() {
       .then(res => { if (!res.ok) throw new Error('Failed to load products'); return res.json(); })
       .then(products => {
         if (cancelled) return;
-        setDownloads(products.filter(p => p.type === 'digital').map(mapProduct));
-        setPhysical(products.filter(p => p.type === 'physical').map(mapProduct));
+        setDownloads(products.filter(product => product.type === 'digital').map(mapProduct));
+        setPhysical(products.filter(product => product.type === 'physical').map(mapProduct));
       })
       .catch(() => { if (!cancelled) setLoadError(true); })
       .finally(() => { if (!cancelled) setLoading(false); });
@@ -114,7 +85,7 @@ export default function Shop() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          items: items.map(i => ({ id: i.id, quantity: 1 })),
+          items: items.map(item => ({ id: item.id, quantity: 1 })),
           userId: authSession?.user?.id || null,
           email: authSession?.user?.email || null,
         }),

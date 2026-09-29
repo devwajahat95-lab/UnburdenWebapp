@@ -332,6 +332,11 @@ input:focus,select:focus,textarea:focus{
 @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
 
 .spin{animation:spin 0.9s linear infinite;}
+
+/* Product image gallery arrows (Shop.js) — hidden until hover, since the
+   inline styles set opacity:0 by default with no rule to ever reveal them. */
+.product-gallery:hover .gallery-arrow{opacity:1 !important;}
+.gallery-arrow:hover{background:rgba(22,58,61,0.8) !important;}
 @keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
 
 /* Assessment card — fixed height, no overflow */
