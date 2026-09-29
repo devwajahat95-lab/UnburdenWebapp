@@ -194,13 +194,23 @@ function ProductsTab() {
             </span>
           )}
           <button
-            onClick={applyChanges}
-            disabled={dirtyIds.size === 0 || applying}
-            className="btn-primary"
-            style={{ opacity: dirtyIds.size === 0 ? 0.5 : 1, cursor: dirtyIds.size === 0 ? 'default' : 'pointer' }}
-          >
-            {applying ? 'Applying...' : 'Apply Changes'}
-          </button>
+  onClick={applyChanges}
+  disabled={dirtyIds.size === 0 || applying}
+  style={{
+    background: dirtyIds.size === 0 ? '#F5E9A8' : '#FFD400',
+    color: '#163a3d',
+    border: 'none',
+    borderRadius: 8,
+    padding: '10px 20px',
+    fontWeight: 700,
+    fontSize: '0.9rem',
+    cursor: dirtyIds.size === 0 ? 'default' : 'pointer',
+    boxShadow: dirtyIds.size > 0 ? '0 2px 10px rgba(255,212,0,0.45)' : 'none',
+    transition: 'all 0.15s',
+  }}
+>
+  {applying ? 'Applying...' : 'Apply Changes'}
+</button>
         </div>
       </div>
 
