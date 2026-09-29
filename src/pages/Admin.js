@@ -18,6 +18,7 @@ function ProductsTab() {
   const [newProduct, setNewProduct] = useState({
     title: '', subtitle: '', description: '', price_cents: 0, type: 'digital', image_url: '', badge: '', sort_order: 0,
   });
+  const [newGalleryUrls, setNewGalleryUrls] = useState([]);
 
   const load = async () => {
     setLoading(true);
@@ -27,10 +28,46 @@ function ProductsTab() {
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+
+    // True real-time: Supabase pushes any insert/update/delete on `products`
+    // straight to this open tab over a websocket — no polling, no backend
+    // route, and no extra Vercel function needed.
+    const channel = supabase
+      .channel('admin-products-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
+        load();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   const updateField = (id, field, value) => {
     setProducts(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
+  };
+
+  const updateGalleryUrl = (id, index, value) => {
+    setProducts(prev => prev.map(p => {
+      if (p.id !== id) return p;
+      const urls = [...(p.image_urls || [])];
+      urls[index] = value;
+      return { ...p, image_urls: urls };
+    }));
+  };
+
+  const addGalleryUrl = (id) => {
+    setProducts(prev => prev.map(p => p.id === id ? { ...p, image_urls: [...(p.image_urls || []), ''] } : p));
+  };
+
+  const removeGalleryUrl = (id, index) => {
+    setProducts(prev => prev.map(p => {
+      if (p.id !== id) return p;
+      const urls = [...(p.image_urls || [])];
+      urls.splice(index, 1);
+      return { ...p, image_urls: urls };
+    }));
   };
 
   const save = async (product) => {
@@ -42,6 +79,7 @@ function ProductsTab() {
       description: product.description,
       price_cents: parseInt(product.price_cents, 10) || 0,
       image_url: product.image_url || null,
+      image_urls: (product.image_urls || []).filter(u => u && u.trim() !== ''),
       badge: product.badge || null,
       sort_order: parseInt(product.sort_order, 10) || 0,
       stock: product.stock === '' || product.stock === null ? null : parseInt(product.stock, 10),
@@ -57,10 +95,12 @@ function ProductsTab() {
       ...newProduct,
       price_cents: parseInt(newProduct.price_cents, 10) || 0,
       sort_order: parseInt(newProduct.sort_order, 10) || 0,
+      image_urls: newGalleryUrls.filter(u => u && u.trim() !== ''),
       active: true,
     });
     if (err) { setError(err.message); return; }
     setNewProduct({ title: '', subtitle: '', description: '', price_cents: 0, type: 'digital', image_url: '', badge: '', sort_order: 0 });
+    setNewGalleryUrls([]);
     setShowNew(false);
     load();
   };
@@ -85,8 +125,20 @@ function ProductsTab() {
             <option value="physical">physical</option>
             <option value="membership">membership</option>
           </select>
-          <input placeholder="Image URL" value={newProduct.image_url} onChange={e => setNewProduct(p => ({ ...p, image_url: e.target.value }))} style={inputStyle} />
+          <input placeholder="Image URL (cover)" value={newProduct.image_url} onChange={e => setNewProduct(p => ({ ...p, image_url: e.target.value }))} style={inputStyle} />
           <input placeholder="Badge (optional)" value={newProduct.badge} onChange={e => setNewProduct(p => ({ ...p, badge: e.target.value }))} style={inputStyle} />
+
+          <div style={{ gridColumn: '1 / -1' }}>
+            <label style={{ fontSize: '0.8rem', color: '#666', display: 'block', marginBottom: 6 }}>Additional gallery images (optional)</label>
+            {newGalleryUrls.map((url, i) => (
+              <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                <input value={url} onChange={e => setNewGalleryUrls(u => u.map((x, idx) => idx === i ? e.target.value : x))} style={{ ...inputStyle, flex: 1 }} placeholder={`Gallery image ${i + 1} URL`} />
+                <button type="button" onClick={() => setNewGalleryUrls(u => u.filter((_, idx) => idx !== i))} style={removeBtnStyle}>✕</button>
+              </div>
+            ))}
+            <button type="button" onClick={() => setNewGalleryUrls(u => [...u, ''])} className="btn-outline" style={{ padding: '5px 12px', fontSize: '0.8rem' }}>+ Add image</button>
+          </div>
+
           <button onClick={createProduct} className="btn-primary" style={{ gridColumn: '1 / -1', justifyContent: 'center' }}>Create Product</button>
         </div>
       )}
@@ -104,7 +156,19 @@ function ProductsTab() {
                 style={inputStyle} />
             </div>
             <input value={product.badge || ''} onChange={e => updateField(product.id, 'badge', e.target.value)} style={inputStyle} placeholder="Badge" />
-            <input value={product.image_url || ''} onChange={e => updateField(product.id, 'image_url', e.target.value)} style={{ ...inputStyle, gridColumn: '1 / -1' }} placeholder="Image URL" />
+            <input value={product.image_url || ''} onChange={e => updateField(product.id, 'image_url', e.target.value)} style={{ ...inputStyle, gridColumn: '1 / -1' }} placeholder="Cover image URL" />
+
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label style={{ fontSize: '0.78rem', color: '#666', display: 'block', marginBottom: 6 }}>Additional gallery images</label>
+              {(product.image_urls || []).map((url, i) => (
+                <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                  <input value={url} onChange={e => updateGalleryUrl(product.id, i, e.target.value)} style={{ ...inputStyle, flex: 1 }} placeholder={`Gallery image ${i + 1} URL`} />
+                  <button type="button" onClick={() => removeGalleryUrl(product.id, i)} style={removeBtnStyle}>✕</button>
+                </div>
+              ))}
+              <button type="button" onClick={() => addGalleryUrl(product.id)} className="btn-outline" style={{ padding: '5px 12px', fontSize: '0.8rem' }}>+ Add image</button>
+            </div>
+
             <input type="number" value={product.sort_order ?? 0} onChange={e => updateField(product.id, 'sort_order', e.target.value)} style={inputStyle} placeholder="Sort order" />
             <input type="number" value={product.stock ?? ''} onChange={e => updateField(product.id, 'stock', e.target.value)} style={inputStyle} placeholder="Stock (blank = unlimited)" />
 
@@ -198,6 +262,7 @@ function BookingsTab() {
 }
 
 const inputStyle = { padding: '8px 10px', borderRadius: 6, border: '1px solid rgba(31,81,84,0.18)', fontSize: '0.88rem', fontFamily: 'DM Sans, sans-serif' };
+const removeBtnStyle = { padding: '0 10px', borderRadius: 6, border: '1px solid rgba(192,57,43,0.3)', background: 'white', color: '#c0392b', cursor: 'pointer', fontSize: '0.85rem' };
 const thStyle = { padding: '8px 12px', fontWeight: 600 };
 const tdStyle = { padding: '8px 12px' };
 
