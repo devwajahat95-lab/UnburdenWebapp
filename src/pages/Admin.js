@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
@@ -12,7 +12,13 @@ function formatPrice(cents) {
 function ProductsTab() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [savingId, setSavingId] = useState(null);
+  const [applying, setApplying] = useState(false);
+  const [dirtyIds, setDirtyIds] = useState(new Set());
+  // load() is called from a realtime callback set up once on mount, so it
+  // needs a ref (not the state variable directly) to always see the LATEST
+  // dirty set rather than whatever it was at mount time.
+  const dirtyIdsRef = useRef(dirtyIds);
+  useEffect(() => { dirtyIdsRef.current = dirtyIds; }, [dirtyIds]);
   const [error, setError] = useState('');
   const [showNew, setShowNew] = useState(false);
   const [newProduct, setNewProduct] = useState({
@@ -23,8 +29,15 @@ function ProductsTab() {
   const load = async () => {
     setLoading(true);
     const { data, error: err } = await supabase.from('products').select('*').order('sort_order', { ascending: true });
-    if (err) setError(err.message);
-    else setProducts(data || []);
+    if (err) { setError(err.message); setLoading(false); return; }
+    // Merge instead of overwrite: any row you're actively editing (dirty)
+    // keeps YOUR local version instead of being clobbered by the realtime
+    // refresh — otherwise a background update could wipe out unsaved edits
+    // while you're still typing.
+    setProducts(prev => {
+      const dirtyMap = new Map(prev.filter(p => dirtyIdsRef.current.has(p.id)).map(p => [p.id, p]));
+      return (data || []).map(p => dirtyMap.get(p.id) || p);
+    });
     setLoading(false);
   };
 
@@ -44,8 +57,24 @@ function ProductsTab() {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
+  // Warn on refresh/tab-close if there are unapplied edits, so they're never
+  // silently lost the way they could be before.
+  useEffect(() => {
+    const handler = (e) => {
+      if (dirtyIdsRef.current.size > 0) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, []);
+
+  const markDirty = (id) => setDirtyIds(prev => new Set(prev).add(id));
+
   const updateField = (id, field, value) => {
     setProducts(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
+    markDirty(id);
   };
 
   const updateGalleryUrl = (id, index, value) => {
@@ -55,10 +84,12 @@ function ProductsTab() {
       urls[index] = value;
       return { ...p, image_urls: urls };
     }));
+    markDirty(id);
   };
 
   const addGalleryUrl = (id) => {
     setProducts(prev => prev.map(p => p.id === id ? { ...p, image_urls: [...(p.image_urls || []), ''] } : p));
+    markDirty(id);
   };
 
   const removeGalleryUrl = (id, index) => {
@@ -68,25 +99,66 @@ function ProductsTab() {
       urls.splice(index, 1);
       return { ...p, image_urls: urls };
     }));
+    markDirty(id);
   };
 
-  const save = async (product) => {
-    setSavingId(product.id);
+  // One global action instead of a Save button per row — applies every
+  // pending edit across all products in one go.
+  const applyChanges = async () => {
+    if (dirtyIds.size === 0) return;
+    setApplying(true);
     setError('');
-    const { error: err } = await supabase.from('products').update({
-      title: product.title,
-      subtitle: product.subtitle,
-      description: product.description,
-      price_cents: parseInt(product.price_cents, 10) || 0,
-      image_url: product.image_url || null,
-      image_urls: (product.image_urls || []).filter(u => u && u.trim() !== ''),
-      badge: product.badge || null,
-      sort_order: parseInt(product.sort_order, 10) || 0,
-      stock: product.stock === '' || product.stock === null ? null : parseInt(product.stock, 10),
-      active: product.active,
-    }).eq('id', product.id);
-    if (err) setError(err.message);
-    setSavingId(null);
+
+    const idsToApply = Array.from(dirtyIds);
+    const results = await Promise.all(idsToApply.map(id => {
+      const product = products.find(p => p.id === id);
+      if (!product) return Promise.resolve({ id, error: null });
+      return supabase.from('products').update({
+        title: product.title,
+        subtitle: product.subtitle,
+        description: product.description,
+        price_cents: parseInt(product.price_cents, 10) || 0,
+        image_url: product.image_url || null,
+        image_urls: (product.image_urls || []).filter(u => u && u.trim() !== ''),
+        badge: product.badge || null,
+        sort_order: parseInt(product.sort_order, 10) || 0,
+        stock: product.stock === '' || product.stock === null ? null : parseInt(product.stock, 10),
+        active: product.active,
+      }).eq('id', id).then(({ error: err }) => ({ id, error: err }));
+    }));
+
+    const failed = results.filter(r => r.error);
+    if (failed.length > 0) {
+      setError(`Failed to save ${failed.length} of ${idsToApply.length} product(s): ${failed[0].error.message}`);
+      // Only clear dirty flags for the ones that actually succeeded
+      const failedIds = new Set(failed.map(f => f.id));
+      setDirtyIds(new Set(idsToApply.filter(id => failedIds.has(id))));
+    } else {
+      setDirtyIds(new Set());
+    }
+    setApplying(false);
+  };
+
+  // Active is the one field that saves the instant you click it, separate
+  // from the rest of the form — toggling a product on/off should never
+  // silently get lost if you forget to click Apply Changes afterward.
+  // Uses setProducts directly (not updateField) so it doesn't mark the row
+  // dirty — it's already saved, no pending change to apply.
+  const toggleActive = async (product) => {
+    const newValue = !product.active;
+    setProducts(prev => prev.map(p => p.id === product.id ? { ...p, active: newValue } : p)); // optimistic
+    const { error: err } = await supabase.from('products').update({ active: newValue }).eq('id', product.id);
+    if (err) {
+      setError(err.message);
+      setProducts(prev => prev.map(p => p.id === product.id ? { ...p, active: product.active } : p)); // revert
+    }
+  };
+
+  const deleteProduct = async (product) => {
+    if (!window.confirm(`Delete "${product.title}"? This can't be undone.`)) return;
+    const { error: err } = await supabase.from('products').delete().eq('id', product.id);
+    if (err) { setError(err.message); return; }
+    setProducts(prev => prev.filter(p => p.id !== product.id));
   };
 
   const createProduct = async () => {
@@ -110,9 +182,27 @@ function ProductsTab() {
   return (
     <div>
       {error && <p style={{ color: '#c0392b', marginBottom: 16 }}>{error}</p>}
-      <button onClick={() => setShowNew(s => !s)} className="btn-outline" style={{ marginBottom: 20 }}>
-        {showNew ? 'Cancel' : '+ Add Product'}
-      </button>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+        <button onClick={() => setShowNew(s => !s)} className="btn-outline">
+          {showNew ? 'Cancel' : '+ Add Product'}
+        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {dirtyIds.size > 0 && (
+            <span style={{ fontSize: '0.82rem', color: '#C6A03C', fontWeight: 600 }}>
+              {dirtyIds.size} unsaved change{dirtyIds.size > 1 ? 's' : ''}
+            </span>
+          )}
+          <button
+            onClick={applyChanges}
+            disabled={dirtyIds.size === 0 || applying}
+            className="btn-primary"
+            style={{ opacity: dirtyIds.size === 0 ? 0.5 : 1, cursor: dirtyIds.size === 0 ? 'default' : 'pointer' }}
+          >
+            {applying ? 'Applying...' : 'Apply Changes'}
+          </button>
+        </div>
+      </div>
 
       {showNew && (
         <div style={{ background: '#FAF8F4', borderRadius: 10, padding: 16, marginBottom: 24, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -145,7 +235,12 @@ function ProductsTab() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {products.map(product => (
-          <div key={product.id} style={{ border: '1px solid rgba(31,81,84,0.12)', borderRadius: 10, padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, opacity: product.active ? 1 : 0.55 }}>
+          <div key={product.id} style={{ border: dirtyIds.has(product.id) ? '1px solid #C6A03C' : '1px solid rgba(31,81,84,0.12)', borderRadius: 10, padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, opacity: product.active ? 1 : 0.55, position: 'relative' }}>
+            {dirtyIds.has(product.id) && (
+              <span style={{ position: 'absolute', top: -9, left: 14, background: '#C6A03C', color: '#163a3d', fontSize: '0.68rem', fontWeight: 700, padding: '2px 8px', borderRadius: 4 }}>
+                Edited
+              </span>
+            )}
             <input value={product.title || ''} onChange={e => updateField(product.id, 'title', e.target.value)} style={inputStyle} placeholder="Title" />
             <input value={product.subtitle || ''} onChange={e => updateField(product.id, 'subtitle', e.target.value)} style={inputStyle} placeholder="Subtitle" />
             <textarea value={product.description || ''} onChange={e => updateField(product.id, 'description', e.target.value)} style={{ ...inputStyle, gridColumn: '1 / -1', minHeight: 50 }} placeholder="Description" />
@@ -174,11 +269,11 @@ function ProductsTab() {
 
             <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', color: '#3d3d3d' }}>
-                <input type="checkbox" checked={!!product.active} onChange={e => updateField(product.id, 'active', e.target.checked)} />
-                Active
+                <input type="checkbox" checked={!!product.active} onChange={() => toggleActive(product)} />
+                Active {' '}<span style={{ color: '#9b9b9b', fontSize: '0.75rem' }}>(saves instantly)</span>
               </label>
-              <button onClick={() => save(product)} disabled={savingId === product.id} className="btn-primary" style={{ padding: '6px 16px', fontSize: '0.85rem' }}>
-                {savingId === product.id ? 'Saving...' : 'Save'}
+              <button onClick={() => deleteProduct(product)} style={{ padding: '6px 16px', fontSize: '0.85rem', background: 'white', color: '#c0392b', border: '1px solid rgba(192,57,43,0.35)', borderRadius: 8, cursor: 'pointer' }}>
+                Delete
               </button>
             </div>
           </div>
