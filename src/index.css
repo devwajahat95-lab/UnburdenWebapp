@@ -331,6 +331,9 @@ input:focus,select:focus,textarea:focus{
 }
 @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
 
+.spin{animation:spin 0.9s linear infinite;}
+@keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+
 /* Assessment card — fixed height, no overflow */
 .assessment-card{
   background:var(--cream);border-radius:var(--r-lg);
@@ -391,6 +394,17 @@ input:focus,select:focus,textarea:focus{
   padding:18px;position:relative;max-height:92vh;overflow-y:auto;
   animation:modalPop 0.3s var(--ease-out) forwards;
   box-shadow:0 24px 64px rgba(31,81,84,0.18);
+}
+/* Hide the scrollbar visually on the modal and anything inside it (e.g. the
+   Cal.com embed's own internal scroll area) while keeping scrolling itself
+   still functional via touch/wheel/keyboard if content ever exceeds the
+   container — just without the visible track/thumb. */
+.modal, .modal *{
+  scrollbar-width:none; /* Firefox */
+  -ms-overflow-style:none; /* old Edge/IE */
+}
+.modal::-webkit-scrollbar, .modal *::-webkit-scrollbar{
+  display:none; /* Chrome, Safari, new Edge */
 }
 .modal-close{position:absolute;top:7px;right:7px;background:none;border:none;color:var(--text-light);cursor:pointer;padding:2px;transition:color 0.2s,transform 0.2s;}
 .modal-close:hover{color:var(--teal);transform:rotate(90deg);}

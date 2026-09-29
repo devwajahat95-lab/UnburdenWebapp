@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X } from 'lucide-react';
+import { X, Loader2 } from 'lucide-react';
 
 // TODO: these are placeholder slugs (Section 2.7 of the spec). Replace with
 // Emily's real Cal.com username/event slugs once she creates her account —
@@ -49,10 +49,11 @@ function loadCalScript() {
 }
 
 function CalEmbed({ calLink, namespace }) {
-  const containerRef = useRef(null);
   const elementId = useRef(`cal-inline-${Math.random().toString(36).slice(2)}`);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
     loadCalScript();
     window.Cal('init', namespace, { origin: 'https://app.cal.com' });
     window.Cal.ns[namespace]('inline', {
@@ -61,14 +62,37 @@ function CalEmbed({ calLink, namespace }) {
       config: { layout: 'month_view', useSlotsViewOnSmallScreen: 'true' },
     });
     window.Cal.ns[namespace]('ui', { hideEventTypeDetails: false, layout: 'month_view' });
+
+    // Cal.com fires this once the embedded calendar has actually rendered —
+    // hide our loading spinner at that point instead of guessing with a timer.
+    window.Cal.ns[namespace]('on', {
+      action: 'linkReady',
+      callback: () => { if (!cancelled) setLoading(false); },
+    });
+
+    // Safety net: if linkReady never fires for some reason, don't leave the
+    // spinner up forever.
+    const fallback = setTimeout(() => { if (!cancelled) setLoading(false); }, 6000);
+
+    return () => { cancelled = true; clearTimeout(fallback); };
   }, [calLink, namespace]);
 
   return (
-    <div
-      id={elementId.current}
-      ref={containerRef}
-      style={{ width: '100%', minHeight: 480, overflow: 'scroll' }}
-    />
+    <div style={{ position: 'relative', flex: 1, minHeight: 0 }}>
+      {loading && (
+        <div style={{
+          position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center', gap: 10, background: 'white', zIndex: 1,
+        }}>
+          <Loader2 size={28} className="spin" style={{ color: '#1F5154' }} />
+          <span style={{ fontSize: '0.85rem', color: '#9b9b9b' }}>Loading available times...</span>
+        </div>
+      )}
+      <div
+        id={elementId.current}
+        style={{ width: '100%', height: '100%', overflow: 'auto' }}
+      />
+    </div>
   );
 }
 
@@ -85,10 +109,15 @@ export default function BookingModal({ type, onClose }) {
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ maxWidth: scopeAgreed ? 720 : 520 }}>
+      <div
+        className="modal"
+        style={scopeAgreed
+          ? { maxWidth: 640, width: '92vw', height: 'min(78vh, 620px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }
+          : { maxWidth: 480 }}
+      >
         <button className="modal-close" onClick={onClose}><X size={20} /></button>
-        <h3>{titles[type] || 'Book a Session'}</h3>
-        <p>
+        <h3 style={{ flexShrink: 0 }}>{titles[type] || 'Book a Session'}</h3>
+        <p style={{ flexShrink: 0 }}>
           All 1:1 work is coaching — not therapy.{' '}
           <a href="/scope-of-service" target="_blank" rel="noreferrer" style={{ color: '#1F5154' }}>
             See scope of service →
