@@ -3,17 +3,19 @@ import { X } from 'lucide-react';
 
 // TODO: these are placeholder slugs (Section 2.7 of the spec). Replace with
 // Emily's real Cal.com username/event slugs once she creates her account —
-// e.g. 'emily-tuc/coaching-session' becomes whatever Cal.com actually assigns.
+// each is a full "username/event-slug" path, exactly as Cal.com's own
+// generated embed code specifies (grab it from Event Type → Embed → the
+// calLink value in the snippet, not the short share-link shown elsewhere).
 const CAL_SLUGS = {
-  coaching: 'test-coaching-session',
+  coaching: 'wajahat-dev-vji8jb/30min',
   class: 'emily-tuc/group-class',
   intensive: 'emily-tuc/intensive',
 };
 
 // Cal.com's official embed bootstrap snippet, adapted for React. A bare
 // data-cal-link attribute on a div only works for POPUP/button triggers —
-// an inline embed needs this loader plus an explicit Cal("inline", {...})
-// call, which is what was missing before.
+// an inline embed needs this loader plus an explicit namespaced
+// Cal.ns[namespace]("inline", {...}) call, which is what was missing before.
 function loadCalScript() {
   if (window.Cal) return;
   (function (C, A, L) {
@@ -46,19 +48,20 @@ function loadCalScript() {
   })(window, 'https://app.cal.com/embed/embed.js', 'init');
 }
 
-function CalEmbed({ calLink }) {
+function CalEmbed({ calLink, namespace }) {
   const containerRef = useRef(null);
   const elementId = useRef(`cal-inline-${Math.random().toString(36).slice(2)}`);
 
   useEffect(() => {
     loadCalScript();
-    window.Cal('init', { origin: 'https://cal.com' });
-    window.Cal('inline', {
+    window.Cal('init', namespace, { origin: 'https://app.cal.com' });
+    window.Cal.ns[namespace]('inline', {
       elementOrSelector: `#${elementId.current}`,
       calLink,
-      config: { layout: 'month_view' },
+      config: { layout: 'month_view', useSlotsViewOnSmallScreen: 'true' },
     });
-  }, [calLink]);
+    window.Cal.ns[namespace]('ui', { hideEventTypeDetails: false, layout: 'month_view' });
+  }, [calLink, namespace]);
 
   return (
     <div
@@ -112,7 +115,7 @@ export default function BookingModal({ type, onClose }) {
             </p>
           </div>
         ) : calLink ? (
-          <CalEmbed calLink={calLink} />
+          <CalEmbed calLink={calLink} namespace={type} />
         ) : (
           <p style={{ color: '#c0392b' }}>Booking isn't available for this session type yet.</p>
         )}
