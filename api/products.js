@@ -1,19 +1,16 @@
-import { supabase } from '../../_lib/supabase';
+import { supabase } from './_lib/supabase';
 
-// Optional catch-all: [[...id]] matches BOTH /api/products (id undefined)
-// AND /api/products/:id (id = ['the-id']). Merged from two separate files
-// to save a serverless function slot — see known_gaps.md Gap 14.
+// Flat file, no bracket-based dynamic routing at all — handles both
+// GET /api/products (list) and GET /api/products/:id (detail, via a plain
+// vercel.json rewrite that maps the URL to this file with ?id=... attached).
+// Switched away from the [[...id]].js optional-catch-all convention because
+// that syntax is Next.js-specific and isn't reliably supported by Vercel's
+// generic (non-Next.js) serverless function routing — see known_gaps.md.
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
-
-  // Safety net: never let this response be cached at any layer (browser or
-  // Vercel's edge). This class of route once got misrouted to a static HTML
-  // fallback that then stuck around in the edge cache — this header means
-  // that can't happen silently again even if a similar routing issue recurs.
   res.setHeader('Cache-Control', 'no-store');
 
-  const idParam = req.query.id;
-  const id = Array.isArray(idParam) ? idParam[0] : idParam;
+  const { id } = req.query;
 
   if (id) {
     const { data, error } = await supabase
@@ -41,7 +38,6 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Failed to load products' });
   }
 
-  // r2_key is a private object key for the paid download — never expose it to the browser
   const stripped = data.map(({ r2_key, ...rest }) => rest);
   return res.json(stripped);
 }

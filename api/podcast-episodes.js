@@ -1,14 +1,13 @@
-import { supabase } from '../../../_lib/supabase';
+import { supabase } from './_lib/supabase';
 
-// Optional catch-all: [[...slug]] matches BOTH /api/podcast/episodes
-// (slug undefined) AND /api/podcast/episodes/:slug. Merged from two files —
-// see known_gaps.md Gap 14.
+// Flat file (see api/products.js for why — the [[...slug]].js optional
+// catch-all convention isn't reliable outside Next.js). vercel.json rewrites
+// map both /api/podcast/episodes and /api/podcast/episodes/:slug to this file.
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
   res.setHeader('Cache-Control', 'no-store');
 
-  const slugParam = req.query.slug;
-  const slug = Array.isArray(slugParam) ? slugParam[0] : slugParam;
+  const { slug } = req.query;
 
   if (slug) {
     const { data, error } = await supabase
