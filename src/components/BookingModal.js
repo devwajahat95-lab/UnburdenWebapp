@@ -59,9 +59,13 @@ function CalEmbed({ calLink, namespace }) {
     window.Cal.ns[namespace]('inline', {
       elementOrSelector: `#${elementId.current}`,
       calLink,
-      config: { layout: 'month_view', useSlotsViewOnSmallScreen: 'true' },
+      // column_view puts the calendar and time slots side-by-side (wide,
+      // short) instead of month_view's stacked (narrow, tall) layout —
+      // this is what actually fits a rectangular modal with no vertical
+      // scrolling on desktop.
+      config: { layout: 'column_view' },
     });
-    window.Cal.ns[namespace]('ui', { hideEventTypeDetails: false, layout: 'month_view' });
+    window.Cal.ns[namespace]('ui', { hideEventTypeDetails: false, layout: 'column_view' });
 
     // Cal.com fires this once the embedded calendar has actually rendered —
     // hide our loading spinner at that point instead of guessing with a timer.
@@ -112,12 +116,12 @@ export default function BookingModal({ type, onClose }) {
       <div
         className="modal"
         style={scopeAgreed
-          ? { maxWidth: 640, width: '92vw', height: 'min(78vh, 620px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }
+          ? { maxWidth: 980, width: '94vw', height: 'min(72vh, 560px)', padding: '14px 18px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }
           : { maxWidth: 480 }}
       >
         <button className="modal-close" onClick={onClose}><X size={20} /></button>
-        <h3 style={{ flexShrink: 0 }}>{titles[type] || 'Book a Session'}</h3>
-        <p style={{ flexShrink: 0 }}>
+        <h3 style={{ flexShrink: 0, marginBottom: 2 }}>{titles[type] || 'Book a Session'}</h3>
+        <p style={{ flexShrink: 0, marginBottom: 8 }}>
           All 1:1 work is coaching — not therapy.{' '}
           <a href="/scope-of-service" target="_blank" rel="noreferrer" style={{ color: '#1F5154' }}>
             See scope of service →
