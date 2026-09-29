@@ -6,6 +6,12 @@ import { supabase } from '../../_lib/supabase';
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
+  // Safety net: never let this response be cached at any layer (browser or
+  // Vercel's edge). This class of route once got misrouted to a static HTML
+  // fallback that then stuck around in the edge cache — this header means
+  // that can't happen silently again even if a similar routing issue recurs.
+  res.setHeader('Cache-Control', 'no-store');
+
   const idParam = req.query.id;
   const id = Array.isArray(idParam) ? idParam[0] : idParam;
 

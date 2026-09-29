@@ -5,6 +5,7 @@ import { supabase } from '../../../_lib/supabase';
 // see known_gaps.md Gap 14.
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+  res.setHeader('Cache-Control', 'no-store');
 
   const slugParam = req.query.slug;
   const slug = Array.isArray(slugParam) ? slugParam[0] : slugParam;
