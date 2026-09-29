@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 
 // TODO: these are placeholder slugs (Section 2.7 of the spec). Replace with
@@ -10,20 +10,61 @@ const CAL_SLUGS = {
   intensive: 'emily-tuc/intensive',
 };
 
+// Cal.com's official embed bootstrap snippet, adapted for React. A bare
+// data-cal-link attribute on a div only works for POPUP/button triggers —
+// an inline embed needs this loader plus an explicit Cal("inline", {...})
+// call, which is what was missing before.
+function loadCalScript() {
+  if (window.Cal) return;
+  (function (C, A, L) {
+    let p = function (a, ar) { a.q.push(ar); };
+    let d = C.document;
+    C.Cal = C.Cal || function () {
+      let cal = C.Cal;
+      let ar = arguments;
+      if (!cal.loaded) {
+        cal.ns = {};
+        cal.q = cal.q || [];
+        d.head.appendChild(d.createElement('script')).src = A;
+        cal.loaded = true;
+      }
+      if (ar[0] === L) {
+        const api = function () { p(api, arguments); };
+        const namespace = ar[1];
+        api.q = api.q || [];
+        if (typeof namespace === 'string') {
+          cal.ns[namespace] = cal.ns[namespace] || api;
+          p(cal.ns[namespace], ar);
+          p(cal, ['initNamespace', namespace]);
+        } else {
+          p(cal, ar);
+        }
+        return;
+      }
+      p(cal, ar);
+    };
+  })(window, 'https://app.cal.com/embed/embed.js', 'init');
+}
+
 function CalEmbed({ calLink }) {
+  const containerRef = useRef(null);
+  const elementId = useRef(`cal-inline-${Math.random().toString(36).slice(2)}`);
+
   useEffect(() => {
-    if (window.Cal) return; // already loaded from a previous open
-    const script = document.createElement('script');
-    script.src = 'https://cal.com/embed.js';
-    script.async = true;
-    document.body.appendChild(script);
-  }, []);
+    loadCalScript();
+    window.Cal('init', { origin: 'https://cal.com' });
+    window.Cal('inline', {
+      elementOrSelector: `#${elementId.current}`,
+      calLink,
+      config: { layout: 'month_view' },
+    });
+  }, [calLink]);
 
   return (
     <div
-      data-cal-link={calLink}
-      data-cal-config='{"layout":"month_view"}'
-      style={{ width: '100%', minHeight: 480 }}
+      id={elementId.current}
+      ref={containerRef}
+      style={{ width: '100%', minHeight: 480, overflow: 'scroll' }}
     />
   );
 }
